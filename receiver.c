@@ -1,64 +1,57 @@
 #include <stdio.h>
-#include <stdbool.h>
-#include<string.h>
-
-#define MAX_SEQ 7
-#define BUFFER ((MAX_SEQ + 1) / 2)
-#define WINDOW_BOUND BUFFER
-
-struct frame {
-    int seq_no;
-    int ack_no;
-    char info;
-};
-
-struct frame r;
-
-// checks if a value is within the window
-bool between(int a, int b, int c) {
-    return ((a <= b) && (b < c)) || ((c < a) && (a <= b)) || ((b < c) && (c < a));
-}
-
-// Call by reference is used to modify the actual variables in the calling function directly.
-void receive_frame(int *frame_exp, int *window_bound, char data,bool arrived[]) {
-    r.seq_no = *frame_exp;
-    r.ack_no = (*frame_exp+MAX_SEQ)%(MAX_SEQ+1);
-    r.info = data;
-
-    // Check if the received frame is within the window
-    if (between(*frame_exp, r.seq_no, *window_bound)) {
-        arrived[*frame_exp % BUFFER] = true;
-
-        // Process the frame if it's the expected one
-        if (arrived[*frame_exp % BUFFER]) {
-            printf("Receiving Frame %d: seq_no: %d, ack_no: %d, info: %c\n", *frame_exp,r.seq_no, r.ack_no, r.info);
-            // Move to the next expected frame and update window bounds
-            *frame_exp = (*frame_exp + 1) % (MAX_SEQ + 1);
-            *window_bound = (*window_bound + 1) % (MAX_SEQ + 1);
-        } else {
-            // Frame was not received, handle error
-            printf("Frame %d was not received.\n", r.seq_no);
-        }
-    } else {
-        // Frame is not within the window
-        printf("Frame %d is out of the window.\n", *frame_exp);
-    }
-}
+#include <math.h>
 
 int main() {
-    int frame_exp = 0;
-    int window_bound = WINDOW_BOUND;
-    char ch[MAX_SEQ];
-    bool arrived[BUFFER] = { false };
+    int k, r = 0, size;
+    printf("Enter the size of message: ");
+    scanf("%d", &k);
 
-    printf("Enter the message: ");
-    scanf("%s", ch);
-
-    // Receiving the frames
-    for(int i = 0; i < strlen(ch); i++) {
-        receive_frame(&frame_exp, &window_bound, ch[i],arrived);
+    // Calculate the number of redundant bits
+    while (pow(2, r) < k + r + 1) {
+        r++;
     }
-    printf("\nAll frames received... Reception Complete!\n");
+    size = k ;
 
+    // Create the message array
+    int msg[size];
+
+    // Get the message bits at non-redundant positions
+    printf("Enter the message bits: ");
+    for (int i = 0; i < size; i++) {
+            scanf("%d", &msg[i]);
+    }
+    int red[r];
+    // Calculate redundant bit values using XOR
+    for (int i = 0; i < r; i++) {
+        int pos = pow(2, i) - 1; // Position of the redundant bit
+        int parity = 1;
+        // Calculate the range of data bits covered by this redundant bit
+        int start = pos + 1;
+        int end = start + pow(2, i) - 1;
+        // Calculate parity using XOR
+        for (int j = start; j <= end && j < size; j++) {
+            parity ^= msg[j];
+        }
+        red[i] = parity;
+    }
+    // Print the redundant bits
+    int redundant=0;
+    printf("redundant bits: ");
+    for (int i = 0; i < r; i++) {
+        printf("%d ", red[i]);
+        redundant=redundant*10+red[i];
+    }
+    //calculate pos of error bit
+    int rem=0,err=0,b=1;
+    while(redundant>0){
+        rem=redundant%10;
+        err=err+rem*b;
+        redundant/=10;
+        b*=2;
+    }
+    if(err==0)
+            printf("\nNo error");
+    else
+    printf("\nPosition of error Bit: %d",err);
     return 0;
 }
